@@ -1,7 +1,8 @@
 // Copyright by Me
 
 #include "Player/AuraPlayerController.h"
-#include "EnhancedInputSubsystem.h"
+#include "Interaction/EnemyInterface.h"
+#include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
@@ -9,12 +10,49 @@ AAuraPlayerController::AAuraPlayerController()
     bReplicates = true;
 }
 
+void AAuraPlayerController::PlayerTick(float DeltaTime)
+{
+    Super::PlayerTick(DeltaTime);
+
+    CursorTrace();
+}
+
+void AAuraPlayerController::CursorTrace()
+{
+    FHitResult CursorHit;
+    GetHitResultUnderCursor(ECC_Visibility, false, CursorHit);
+    if (!CursorHit.bBlockingHit) return;
+
+    LastActor = ThisActor;
+    ThisActor = Cast<IEnemyInterface>(CursorHit.GetActor());
+
+    if (LastActor == nullptr)
+    {
+        if (ThisActor != nullptr)
+        {
+            ThisActor->HighlighActor();
+        }
+    }
+    else
+    {
+        if (ThisActor != nullptr)
+        {
+            LastActor->UnHighlighActor();
+            ThisActor->HighlighActor();
+        }
+        else
+        {
+            LastActor->UnHighlighActor();
+        }
+    }
+}
+
 void AAuraPlayerController::BeginPlay()
 {
     Super::BeginPlay();
     check(AuraContext);
 
-    UEnhacedInputLocalPlayerSubsystem *Subsystem = ULocalPlayer::GetSubsystem<UEnhacedInputLocalPlayerSubsystem>(GetLocalPlayer());
+    UEnhancedInputLocalPlayerSubsystem*Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
     check(Subsystem);
 
     Subsystem->AddMappingContext(AuraContext, 0);
@@ -40,8 +78,8 @@ void AAuraPlayerController::SetupInputComponent()
 void AAuraPlayerController::Move(const FInputActionValue &InputActionValue)
 {
     const FVector2D InputAxisVector = InputActionValue.Get<FVector2D>();
-    const FRotation Rotation = GetControlRotation();
-    const FRotation YawRotation(0.f, Rotation.Yaw, 0.f);
+    const FRotator Rotation = GetControlRotation();
+    const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 
     const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
     const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
